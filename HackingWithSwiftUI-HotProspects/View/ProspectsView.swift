@@ -5,12 +5,16 @@
 //  Created by Michael Jones on 23/07/2026.
 //
 
+import AVFoundation
+import CodeScanner
 import SwiftData
 import SwiftUI
 
 struct ProspectsView: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \Prospect.name) var prospects: [Prospect]
+    
+    @State private var isShowingScanner: Bool = false
     
     enum FilterType {
         case none, contacted, uncontacted
@@ -40,13 +44,19 @@ struct ProspectsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-                .navigationTitle(title)
-                .toolbar {
-                    Button("Scan", systemImage: "qrcode.viewfinder") {
-                        let newProspect = Prospect(name: "Test", email: "Test@test.com", isContacted: false)
-                        modelContext.insert(newProspect)
-                    }
+            .navigationTitle(title)
+            .toolbar {
+                Button("Scan", systemImage: "qrcode.viewfinder") {
+                    isShowingScanner = true
                 }
+            }
+            .sheet(isPresented: $isShowingScanner) {
+                CodeScannerView(
+                    codeTypes: [.qr],
+                    simulatedData: "Michael Jones\nmichael.jones90@me.com",
+                    completion: handleScan
+                )
+            }
         }
     }
     
@@ -59,6 +69,22 @@ struct ProspectsView: View {
             _prospects = Query(filter: #Predicate {
                 $0.isContacted == showContactOnly
             }, sort: [SortDescriptor(\Prospect.name)])
+        }
+    }
+    
+    /// A callback handler for the QR code scanner sheet (CodeScannerView). When a QR code is scanned, this function processes the result.
+    func handleScan(result: Result<ScanResult, ScanError>) {
+        isShowingScanner = false
+        
+        switch result {
+        case .success(let result):
+            let details = result.string.components(separatedBy: "\n")
+            guard details.count == 2 else { return }
+            
+            let person = Prospect(name: details[0], email: details[1], isContacted: false)
+            modelContext.insert(person)
+        case .failure(let error):
+            print("Scanning failed: \(error.localizedDescription)")
         }
     }
 }
