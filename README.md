@@ -21,4 +21,9 @@ Hot Prospects is an app to track who you meet at conferences or events. The idea
 <img width="201" height="437" alt="Simulator Screenshot - iPhone 17 Pro - 2026-07-26 at 08 48 25" src="https://github.com/user-attachments/assets/9a29c5c2-4ed9-4f9c-93b3-63e03078e444" />
 
 ## Challanges
-TBC
+1. Add Search & Filtering: Allow the user to search for prospects by name or email.
+2. Prospect Detail View: Create a detail view for each prospect showing additional information.
+3. Add Custom Notifications: Allow users to customise notification time per prospect. Support recurring or snooze reminders.
+4. Import/Export: Allow iimporting from/exporting to the device's Contact app.
+5. Accessibility Improvements: Ensure VoiceOver compatibilty.
+6. Unit & UI Testing: TBC
