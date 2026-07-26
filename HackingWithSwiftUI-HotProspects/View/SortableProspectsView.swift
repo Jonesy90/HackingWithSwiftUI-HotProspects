@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct SortableProspectsView: View {
-    let filter: ProspectsView.FilterType
+    let filter: ProspectsView.ViewModel.FilterType
     @State private var sortOrder = SortDescriptor(\Prospect.name)
     
     var body: some View {
@@ -32,5 +32,5 @@ struct SortableProspectsView: View {
 }
 
 #Preview {
-    SortableProspectsView(filter: .none)
+    SortableProspectsView(filter: ProspectsView.ViewModel.FilterType.none)
 }
