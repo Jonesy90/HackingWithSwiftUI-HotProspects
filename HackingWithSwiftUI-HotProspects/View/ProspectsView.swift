@@ -38,12 +38,20 @@ struct ProspectsView: View {
     var body: some View {
         NavigationStack {
             List(prospects, selection: $selectedProspects) { prospect in
-                VStack(alignment: .leading) {
-                    Text(prospect.name)
-                        .font(.headline)
+                NavigationLink {
+                    EditProspectView(prospect: prospect)
+                } label: {
+                    VStack(alignment: .leading) {
+                        Text(prospect.name)
+                            .font(.headline)
+                        Text(prospect.email)
+                            .foregroundStyle(.secondary)
+                    }
                     
-                    Text(prospect.email)
-                        .foregroundStyle(.secondary)
+                    if filter == .none && prospect.isContacted {
+                        Spacer()
+                        Image(systemName: "checkmark.circle.fill")
+                    }
                 }
                 .swipeActions {
                     Button("Delete", systemImage: "trash", role: .destructive) {
@@ -73,7 +81,7 @@ struct ProspectsView: View {
             }
             .navigationTitle(title)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Scan", systemImage: "qrcode.viewfinder") {
                         isShowingScanner = true
                     }
@@ -95,10 +103,13 @@ struct ProspectsView: View {
                     completion: handleScan
                 )
             }
+            .onAppear {
+                selectedProspects = []
+            }
         }
     }
     
-    init(filter: FilterType) {
+    init(filter: FilterType, sort: SortDescriptor<Prospect>) {
         self.filter = filter
         
         if filter != .none {
@@ -107,6 +118,8 @@ struct ProspectsView: View {
             _prospects = Query(filter: #Predicate {
                 $0.isContacted == showContactOnly
             }, sort: [SortDescriptor(\Prospect.name)])
+        } else {
+            _prospects = Query(sort: [sort])
         }
     }
     
@@ -135,7 +148,7 @@ struct ProspectsView: View {
     
     /// Schedules a local notification to remind the user to contact a specific Prospect.
     func addNotification(for prospect: Prospect) {
-        /// Fetches the shared notification center for scheduling and managing notifications.
+        /// Fetches the shared notification centre for scheduling and managing notifications.
         let centre = UNUserNotificationCenter.current()
         
         /// Prepares and schedules the notification.
@@ -176,6 +189,6 @@ struct ProspectsView: View {
 }
 
 #Preview {
-    ProspectsView(filter: .none)
+    ProspectsView(filter: .none, sort: SortDescriptor(\Prospect.name))
         .modelContainer(for: Prospect.self)
 }
