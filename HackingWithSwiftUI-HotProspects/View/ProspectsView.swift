@@ -9,20 +9,14 @@ import AVFoundation
 import CodeScanner
 import SwiftData
 import SwiftUI
-import UserNotifications
 
 struct ProspectsView: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \Prospect.name) var prospects: [Prospect]
     
-    @State private var isShowingScanner: Bool = false
-    @State private var selectedProspects = Set<Prospect>()
+    @State private var viewModel = ViewModel()
     
-    enum FilterType {
-        case none, contacted, uncontacted
-    }
-    
-    let filter: FilterType
+    let filter: ProspectsView.ViewModel.FilterType
     
     var title: String {
         switch filter {
@@ -37,7 +31,7 @@ struct ProspectsView: View {
     
     var body: some View {
         NavigationStack {
-            List(prospects, selection: $selectedProspects) { prospect in
+            List(prospects, selection: $viewModel.selectedProspects) { prospect in
                 NavigationLink {
                     EditProspectView(prospect: prospect)
                 } label: {
@@ -72,7 +66,7 @@ struct ProspectsView: View {
                         .tint(.green)
                         
                         Button("Remind Me", systemImage: "bell" ) {
-                            addNotification(for: prospect)
+                            viewModel.addNotification(for: prospect)
                         }
                         .tint(.orange)
                     }
@@ -83,33 +77,37 @@ struct ProspectsView: View {
             .toolbar {
                  ToolbarItem(placement: .topBarTrailing) {
                     Button("Scan", systemImage: "qrcode.viewfinder") {
-                        isShowingScanner = true
+                        viewModel.isShowingScanner = true
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     EditButton()
                 }
                 
-                if selectedProspects.isEmpty == false {
+                if viewModel.selectedProspects.isEmpty == false {
                     ToolbarItem(placement: .bottomBar) {
-                        Button("Delete Selected", action: delete)
+                        Button("Delete Selected") {
+                            viewModel.delete(modelContext)
+                        }
                     }
                 }
             }
-            .sheet(isPresented: $isShowingScanner) {
+            .sheet(isPresented: $viewModel.isShowingScanner) {
                 CodeScannerView(
                     codeTypes: [.qr],
                     simulatedData: "Michael Jones\nmichael.jones90@me.com",
-                    completion: handleScan
+                    completion: { result in
+                        viewModel.handleScan(result: result, modelContext: modelContext)
+                    }
                 )
             }
             .onAppear {
-                selectedProspects = []
+                viewModel.selectedProspects = []
             }
         }
     }
     
-    init(filter: FilterType, sort: SortDescriptor<Prospect>) {
+    init(filter: ProspectsView.ViewModel.FilterType, sort: SortDescriptor<Prospect>) {
         self.filter = filter
         
         if filter != .none {
@@ -122,73 +120,10 @@ struct ProspectsView: View {
             _prospects = Query(sort: [sort])
         }
     }
-    
-    /// A callback handler for the QR code scanner sheet (CodeScannerView). When a QR code is scanned, this function processes the result.
-    func handleScan(result: Result<ScanResult, ScanError>) {
-        isShowingScanner = false
-        
-        switch result {
-        case .success(let result):
-            let details = result.string.components(separatedBy: "\n")
-            guard details.count == 2 else { return }
-            
-            let person = Prospect(name: details[0], email: details[1], isContacted: false)
-            modelContext.insert(person)
-        case .failure(let error):
-            print("Scanning failed: \(error.localizedDescription)")
-        }
-    }
-    
-    /// Deletes all the currently selected prospects from the data model.
-    func delete() {
-        for prospect in selectedProspects {
-            modelContext.delete(prospect)
-        }
-    }
-    
-    /// Schedules a local notification to remind the user to contact a specific Prospect.
-    func addNotification(for prospect: Prospect) {
-        /// Fetches the shared notification centre for scheduling and managing notifications.
-        let centre = UNUserNotificationCenter.current()
-        
-        /// Prepares and schedules the notification.
-        let addRequest = {
-            /// Sets the notification content (title, subtitle and sound).
-            let content = UNMutableNotificationContent()
-            content.title = "Contact \(prospect.name)"
-            content.subtitle = prospect.email
-            content.sound = UNNotificationSound.default
-            
-            /// Creates a trigger that is scheduled for 9am.
-            var dateComponents = DateComponents()
-            dateComponents.hour = 9
-            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: false)
-            
-            /// Creates a new request and adds it to the notification center.
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
-            centre.add(request)
-        }
-        
-        /// Checks if the app is already authorised to show notifications.
-        centre.getNotificationSettings { settings in
-            /// Schedules the notification.
-            if settings.authorizationStatus == .authorized {
-                addRequest()
-            } else {
-                /// Requests permission from the user. If granted, schedules the notification, if not, prints an error.
-                centre.requestAuthorization(options: [.alert, .badge, .sound]) { success, error in
-                    if success {
-                        addRequest()
-                    } else if let error {
-                        print(error.localizedDescription)
-                    }
-                }
-            }
-        }
-    }
 }
 
 #Preview {
-    ProspectsView(filter: .none, sort: SortDescriptor(\Prospect.name))
+    ProspectsView(filter: ProspectsView.ViewModel.FilterType.none, sort: SortDescriptor(\Prospect.name))
         .modelContainer(for: Prospect.self)
 }
+
